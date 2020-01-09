@@ -12,12 +12,15 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.I2C;
 import edu.wpi.first.wpilibj.util.Color;
+import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.revrobotics.ColorSensorV3;
 import com.revrobotics.ColorMatch;
 import com.revrobotics.ColorMatchResult;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANEncoder;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+import edu.wpi.first.wpilibj.AnalogInput;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -30,12 +33,16 @@ public class Robot extends TimedRobot {
 
   double encoderPosition;
   double encoderVelocity;
-  Joystick joystick = new Joystick(0);
-  CANSparkMax FL = new CANSparkMax(0, MotorType.kBrushless);  
-  CANSparkMax BL = new CANSparkMax(1, MotorType.kBrushless);
-  CANSparkMax FR = new CANSparkMax(2, MotorType.kBrushless);
-  CANSparkMax BR = new CANSparkMax(3, MotorType.kBrushless);
-  CANEncoder encoder = FL.getEncoder(); 
+  Joystick joystick = new Joystick(0); 
+  TalonSRX FL = new TalonSRX(0);
+  TalonSRX BL = new TalonSRX(1);
+  TalonSRX FR = new TalonSRX(2);
+  TalonSRX BR = new TalonSRX(3);
+  //CANSparkMax FL = new CANSparkMax(0, MotorType.kBrushless);  
+  //CANSparkMax BL = new CANSparkMax(1, MotorType.kBrushless);
+  //CANSparkMax FR = new CANSparkMax(2, MotorType.kBrushless);
+  //CANSparkMax BR = new CANSparkMax(3, MotorType.kBrushless);
+  //CANEncoder encoder = FL.getEncoder(); 
   I2C.Port i2cPort = I2C.Port.kOnboard;
   ColorSensorV3 colorSensor = new ColorSensorV3(i2cPort);
   ColorMatch colorMatcher = new ColorMatch(); 
@@ -43,6 +50,11 @@ public class Robot extends TimedRobot {
   final Color kGreenTarget = ColorMatch.makeColor(0.197, 0.561, 0.240);
   final Color kRedTarget = ColorMatch.makeColor(0.561, 0.232, 0.114);
   final Color kYellowTarget = ColorMatch.makeColor(0.361, 0.524, 0.113);
+  final double kHoldDistance = 12.0; // In inches
+  final double kValueToInches = 0.125;
+  final double kP = 0.05;
+  final int kUltrasonicPort = 0;
+  AnalogInput ultrasonic = new AnalogInput(kUltrasonicPort);
 
   /**
    * This function is run when the robot is first started up and should be
@@ -82,19 +94,16 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
-    
-    FL.set(joystick.getRawAxis(1));
-    BL.set(joystick.getRawAxis(1));
-    FR.set(joystick.getRawAxis(5));
-    BR.set(joystick.getRawAxis(5));
-    encoderPosition = encoder.getPosition(); // returns position based on revolution
-    encoderVelocity = encoder.getVelocity(); // returns RPM
-    SmartDashboard.putNumber("Encoder Position", encoderPosition);
-    SmartDashboard.putNumber("Encoder Velocity", encoderVelocity);
+
+    //encoderPosition = encoder.getPosition(); // returns position based on revolution
+    //encoderVelocity = encoder.getVelocity(); // returns RPM
+    //SmartDashboard.putNumber("Encoder Position", encoderPosition);
+    //SmartDashboard.putNumber("Encoder Velocity", encoderVelocity);
 
     Color detectedColor = colorSensor.getColor();
     String colorString;
     ColorMatchResult match = colorMatcher.matchClosestColor(detectedColor);
+
     if (match.color == kBlueTarget) {
       colorString = "Blue";
     } else if (match.color == kRedTarget) {
@@ -106,11 +115,29 @@ public class Robot extends TimedRobot {
     } else {
       colorString = "Unknown";
     }
+
     SmartDashboard.putNumber("Red", detectedColor.red);
     SmartDashboard.putNumber("Green", detectedColor.green);
     SmartDashboard.putNumber("Blue", detectedColor.blue);
     SmartDashboard.putNumber("Confidence", match.confidence);
     SmartDashboard.putString("Detected Color", colorString);
+
+    double currentDistance = ultrasonic.getValue() * kValueToInches;
+    double currentSpeed = (kHoldDistance - currentDistance) * kP;
+
+    if (joystick.getRawButton(1)) {
+      FL.set(ControlMode.PercentOutput, currentSpeed / 4);
+      BL.set(ControlMode.PercentOutput, currentSpeed / 4);
+      FR.set(ControlMode.PercentOutput, currentSpeed / 4);
+      BR.set(ControlMode.PercentOutput, currentSpeed / 4);
+      SmartDashboard.putNumber("Current Distance", currentDistance);
+      SmartDashboard.putNumber("Current Speed", currentSpeed);
+    } else {
+      FL.set(ControlMode.PercentOutput, joystick.getRawAxis(1));
+      BL.set(ControlMode.PercentOutput, joystick.getRawAxis(1));
+      FR.set(ControlMode.PercentOutput, joystick.getRawAxis(5));
+      BR.set(ControlMode.PercentOutput, joystick.getRawAxis(5));
+    }
 
   }
 
